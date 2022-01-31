@@ -7,7 +7,7 @@ function printf(...)
     print(sformat(...))
 end
 
-function test1()
+function test_1p1c()
     local c = Chan(3)
     local msg_list = {100, 200, 300}
 
@@ -38,5 +38,96 @@ function test1()
     consumer()
 end
 
+function test_2p1c()
+    local c = Chan(1)
+    local producer1 = coroutine.wrap(function ()
+        for i = 1, 5 do
+            printf('producer1 start push <%s>',  2*i)
+            local ok, err = c:Push(2*i)
+            if not ok then
+                printf('producer1 push <%s> failed, %s', 2*i, err)
+                break
+            end
+            printf('producer1 push <%s> done', 2*i)
+        end
 
-test1()
+        printf('producer1 start close chan')
+        assert(c:Close())
+        printf('producer1 close chan done')
+    end)
+
+    local producer2 = coroutine.wrap(function ()
+        for i = 1, 5 do
+            printf('producer2 start push <%s>',  2*i - 1)
+            local ok, err = c:Push(2*i - 1)
+            if not ok then
+                printf('producer2 push <%s> failed, %s', 2*i - 1, err)
+                break
+            end
+            printf('producer2 push <%s> done', 2*i - 1)
+        end
+
+        printf('producer2 start close chan')
+        assert(not c:Close())
+        printf('producer2 close chan done')
+    end)
+
+    local consumer1 = coroutine.wrap(function()
+        for ok, v in pairs(c) do
+            printf('consumer1 get %s, %s', ok, v)
+        end
+        printf('consumer1 quit chan')
+    end)
+
+    producer1()
+    producer2()
+    consumer1()
+end
+
+function test_1p2c()
+    local c = Chan(1)
+    local producer1 = coroutine.wrap(function ()
+        for i = 1, 5 do
+            printf('producer1 start push <%s>',  2*i)
+            local ok, err = c:Push(2*i)
+            if not ok then
+                printf('producer1 push <%s> failed, %s', 2*i, err)
+                break
+            end
+            printf('producer1 push <%s> done', 2*i)
+        end
+
+        printf('producer1 start close chan')
+        assert(c:Close())
+        printf('producer1 close chan done')
+    end)
+
+    local consumer1 = coroutine.wrap(function()
+        for ok, v in pairs(c) do
+            printf('consumer1 get %s, %s', ok, v)
+        end
+        printf('consumer1 quit chan')
+    end)
+
+    local consumer2 = coroutine.wrap(function()
+        for ok, v in pairs(c) do
+            printf('consumer2 get %s, %s', ok, v)
+        end
+        printf('consumer2 quit chan')
+    end)
+
+    consumer1()
+    consumer2()
+    producer1()
+end
+
+printf('----one producer and one consumer test begin.----')
+test_1p1c()
+
+printf('----two producer and one consumer test begin.----')
+test_2p1c()
+
+printf('----one producer and two consumer test begin.----')
+test_1p2c()
+
+printf('----all test done!-----')

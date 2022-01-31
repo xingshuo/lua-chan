@@ -19,7 +19,7 @@ function chan_mt:init(cap)
     self.m_Closed = false
 end
 
--- 返回值: 成功 or 失败
+-- 返回值: true(成功) or false(失败), reason
 function chan_mt:Push(v, noblocking)
     assert(not self.m_Closed, ErrChanClosed)
     if self.m_RecvQ.sz >= self.m_RecvQ.cap then
@@ -54,6 +54,7 @@ function chan_mt:Push(v, noblocking)
     return true
 end
 
+-- 返回值: true(成功) or false(失败), reason
 function chan_mt:Pop(noblocking)
     assert(not self.m_Closed, ErrChanClosed)
     if self.m_RecvQ.sz == 0 then
@@ -93,10 +94,24 @@ function chan_mt:Size()
     return self.m_RecvQ.sz
 end
 
+function chan_mt:__pairs()
+    return function ()
+        if self.m_Closed then
+            return
+        end
+        local ok, v  = self:Pop()
+        if not ok and v == ErrChanClosed then
+            return
+        end
+        return ok, v
+    end
+end
+
 function chan_mt:Close()
     if self.m_Closed then
-        return
+        return false
     end
+
     self.m_Closed = true
     for _, co in pairs(self.m_PushWaitingQ) do
         coroutine.resume(co)
@@ -104,6 +119,8 @@ function chan_mt:Close()
     for _, co in pairs(self.m_PopWaitingQ) do
         coroutine.resume(co)
     end
+
+    return true
 end
 
 -- create channel function
